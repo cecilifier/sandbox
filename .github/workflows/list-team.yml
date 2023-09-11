@@ -5,10 +5,8 @@ permissions:
   issues: read
 
 on:
-  pull_request:
-    types: [opened, edited, reopened, labeled, unlabeled, synchronize]
-    branches:
-      - '*'
+  issues:
+    types: [labeled, unlabeled]
 
 jobs:
   check-labels:
@@ -18,15 +16,16 @@ jobs:
         - name: Check 'api-approved' label
           uses: actions/github-script@v6
           with:
+                github-token: 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
                 script: |
                     // --------------------------------------------------------------------------------------------------------------------------------
                     //                                                      Entry point
                     // --------------------------------------------------------------------------------------------------------------------------------                   
-                    core.notice(`Validating public apis changes in PR: ${context.payload.pull_request.number} (${context.payload.pull_request.title})`);
+                    core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);
 
                     const parameters = {
                         organization: context.payload.organization.login,
-                        teamToCheck: "api-review-team"
+                        teamToCheck: "ads-sdk-gateway-working-group"
                       };
                       
                       const query = `
@@ -39,7 +38,7 @@ jobs:
 
                       for(let member of teamMembers.organization.team.members.nodes)
                       {
-                        core.notice(`Member loging: ${member.login}`);
+                         core.notice(`Member loging: ${member.login}`);
                       }
 
                     core.notice(`Approver name 2: ${approverName}`);

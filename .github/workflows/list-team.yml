@@ -13,7 +13,7 @@ jobs:
     runs-on: [ubuntu-latest]
 
     steps:
-        - name: Check 'api-approved' label
+        - name: Assign api rewiew request
           uses: actions/github-script@v6
           with:
                 github-token: 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
@@ -38,17 +38,16 @@ jobs:
                             }`;
   
                     const teamMembers = await github.graphql(query, parameters);
-                    for(let member of teamMembers.organization.team.members.nodes)
-                    {
-                      core.notice(`Member: ${member.login}`);
-                    }
 
-                    core.notice("---- Assigness Start ----");
                     for(const assignee of context.payload.issue.assignees) {
-                      core.notice(`Assignee: ${assignee.login}`);
+                      if (teamMembers.organization.team.members.nodes.indexOf(member => member.login === assignee.login)) {
+                        core.notice(`Issue ${context.payload.issue.number} already assigned to api-review-team member ${assignee.login}`);
+                        return;
+                      }
                     }
-                    
-                    core.notice("---- Assigness End ----");
 
+                    const randonAssignee = teamMembers.organization.team.members.nodes[Math.floor(Math.random() * teamMembers.organization.team.members.nodes.length)];
+
+                    core.notice(`Assigning issue ${context.payload.issue.number} to api-review-team member ${randonAssignee.login}...`);
                     core.notice(`-- Finisahed --`);
 

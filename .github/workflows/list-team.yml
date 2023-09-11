@@ -10,7 +10,7 @@ on:
 
 jobs:
   check-labels:
-    runs-on: [unity-linux-runner]
+    runs-on: [ubuntu-latest]
 
     steps:
         - name: Check 'api-approved' label

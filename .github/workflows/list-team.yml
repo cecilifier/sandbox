@@ -1,0 +1,46 @@
+name: Ensure public API changes are approved
+
+permissions:
+  pull-requests: read
+  issues: read
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, labeled, unlabeled, synchronize]
+    branches:
+      - '*'
+
+jobs:
+  check-labels:
+    runs-on: [unity-linux-runner]
+
+    steps:
+        - name: Check 'api-approved' label
+          uses: actions/github-script@v6
+          with:
+                script: |
+                    // --------------------------------------------------------------------------------------------------------------------------------
+                    //                                                      Entry point
+                    // --------------------------------------------------------------------------------------------------------------------------------                   
+                    core.notice(`Validating public apis changes in PR: ${context.payload.pull_request.number} (${context.payload.pull_request.title})`);
+
+                    const parameters = {
+                        organization: context.payload.organization.login,
+                        teamToCheck: "api-review-team"
+                      };
+                      
+                      const query = `
+                            query($organization: String!, $teamToCheck: String!) {
+                                organization(login: $organization) { team(slug: $teamToCheck) { members { nodes { login } } } }
+                            }`;
+  
+                      const teamMembers = await github.graphql(query, parameters);
+                      core.notice(`Checking if ${login} is memebr of api-review-team\n\n${JSON.stringify(teamMembers)}`);
+
+                      for(let member of teamMembers.organization.team.members.nodes)
+                      {
+                        core.notice(`Member loging: ${member.login}`);
+                      }
+
+                    core.notice(`Approver name: ${approverName}`);
+

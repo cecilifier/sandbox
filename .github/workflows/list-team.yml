@@ -24,22 +24,22 @@ jobs:
                     core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);
 
                     const parameters = {
-                        organization: context.payload.organization.login,
+                        organization: "Unity-Technologies",
                         teamToCheck: "ads-sdk-gateway-working-group"
                       };
                       
-                      const query = `
+                    const query = `
                             query($organization: String!, $teamToCheck: String!) {
                                 organization(login: $organization) { team(slug: $teamToCheck) { members { nodes { login } } } }
                             }`;
   
-                      const teamMembers = await github.graphql(query, parameters);
-                      core.notice(`Checking if ${login} is memebr of api-review-team\n\n${JSON.stringify(teamMembers)}`);
+                    const teamMembers = await github.graphql(query, parameters);
+                      //core.notice(`Checking if ${login} is memebr of api-review-team\n\n${JSON.stringify(teamMembers)}`);
 
-                      for(let member of teamMembers.organization.team.members.nodes)
-                      {
-                         core.notice(`Member loging: ${member.login}`);
-                      }
+                      //for(let member of teamMembers.organization.team.members.nodes)
+                      //{
+                    core.notice(`Member loging: ${JSON.stringify(teamMembers)}`);
+                      //}
 
                     core.notice(`Approver name 2: ${approverName}`);
 

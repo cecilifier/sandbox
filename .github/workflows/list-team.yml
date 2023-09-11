@@ -6,48 +6,55 @@ permissions:
 
 on:
   issues:
-    types: [labeled, unlabeled]
+    types: [labeled]
 
 jobs:
   check-labels:
     runs-on: [ubuntu-latest]
 
     steps:
-        - name: Assign api rewiew request
+        - name: Assign random api rewiewer to request
           uses: actions/github-script@v6
           with:
                 github-token: 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
                 script: |
-                    // --------------------------------------------------------------------------------------------------------------------------------
-                    //                                                      Entry point
-                    // --------------------------------------------------------------------------------------------------------------------------------                   
-                    if (context.payload.issue.labels.findIndex(label => label.name === "duplicate") === -1) {
-                      core.notice(`Issue ${context.payload.issue.number} does not contain required label.`);
-                    }
+                  // --------------------------------------------------------------------------------------------------------------------------------
+                  //                                                       Constants
+                  // --------------------------------------------------------------------------------------------------------------------------------                    
+                  const TeamName = "scripting";
+                  const ApiApprovedLabel = "api-approved";
 
-                    core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);
+                  // --------------------------------------------------------------------------------------------------------------------------------
+                  //                                                      Entry point
+                  // --------------------------------------------------------------------------------------------------------------------------------                    
+                  if (context.payload.issue.labels.findIndex(label => label.name === ApiApprovedLabel) === -1) {
+                    core.notice(`Issue ${context.payload.issue.number} does not contain required label ${ApiApprovedLabel}. Ignoring`);
+                  }
 
-                    const parameters = {
-                        organization: "Unity-Technologies",
-                        teamToCheck: "ads-sdk-gateway-working-group"
-                      };
+                  //core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);
+
+                  const parameters = {
+                    organization: "Unity-Technologies",
+                    teamToCheck: TeamName
+                    };
                       
-                    const query = `
-                            query($organization: String!, $teamToCheck: String!) {
-                                organization(login: $organization) { team(slug: $teamToCheck) { members { nodes { login } } } }
-                            }`;
+                  const query = `
+                          query($organization: String!, $teamToCheck: String!) {
+                            organization(login: $organization) { team(slug: $teamToCheck) { members { nodes { login } } } }
+                          }`;
   
-                    const teamMembers = await github.graphql(query, parameters);
+                  const teamMembers = await github.graphql(query, parameters);
 
-                    for(const assignee of context.payload.issue.assignees) {
-                      if (teamMembers.organization.team.members.nodes.indexOf(member => member.login === assignee.login)) {
-                        core.notice(`Issue ${context.payload.issue.number} already assigned to api-review-team member ${assignee.login}`);
-                        return;
-                      }
+                  for(const assignee of context.payload.issue.assignees) {
+                    if (teamMembers.organization.team.members.nodes.indexOf(member => member.login === assignee.login)) {
+                      core.notice(`Issue ${context.payload.issue.number} already assigned to api-review-team member ${assignee.login}`);
+                      return;
                     }
+                  }
 
-                    const randonAssignee = teamMembers.organization.team.members.nodes[Math.floor(Math.random() * teamMembers.organization.team.members.nodes.length)];
+                  const randonAssignee = teamMembers.organization.team.members.nodes[Math.floor(Math.random() * teamMembers.organization.team.members.nodes.length)];
 
-                    core.notice(`Assigning issue ${context.payload.issue.number} to api-review-team member ${randonAssignee.login}...`);
-                    core.notice(`-- Finisahed --`);
+                  core.notice(`Assigning issue ${context.payload.issue.number} to api-review-team member ${randonAssignee.login}...`);
+                  context.github
 
+                  core.notice(`-- Finisahed --`);

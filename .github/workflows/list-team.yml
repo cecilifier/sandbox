@@ -42,5 +42,5 @@ jobs:
                         core.notice(`Member loging: ${member.login}`);
                       }
 
-                    core.notice(`Approver name: ${approverName}`);
+                    core.notice(`Approver name 2: ${approverName}`);
 

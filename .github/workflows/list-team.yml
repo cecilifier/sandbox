@@ -21,6 +21,10 @@ jobs:
                     // --------------------------------------------------------------------------------------------------------------------------------
                     //                                                      Entry point
                     // --------------------------------------------------------------------------------------------------------------------------------                   
+                    if (context.payload.issue.labels.findIndex(label => label.name === "duplicate") === -1) {
+                      core.notice(`Issue ${context.payload.issue.number} does not contain required label.`);
+                    }
+
                     core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);
 
                     const parameters = {
@@ -34,12 +38,17 @@ jobs:
                             }`;
   
                     const teamMembers = await github.graphql(query, parameters);
-                      //core.notice(`Checking if ${login} is memebr of api-review-team\n\n${JSON.stringify(teamMembers)}`);
+                    for(let member of teamMembers.organization.team.members.nodes)
+                    {
+                      core.notice(`Member: ${member.login}`);
+                    }
 
-                      //for(let member of teamMembers.organization.team.members.nodes)
-                      //{
-                    core.notice(`Member loging: ${JSON.stringify(teamMembers)}`);
-                      //}
+                    core.notice("---- Assigness Start ----");
+                    for(const assignee of context.payload.issue.assignees) {
+                      core.notice(`Assignee: ${assignee.login}`);
+                    }
+                    
+                    core.notice("---- Assigness End ----");
 
-                    core.notice(`Approver name 2: ${approverName}`);
+                    core.notice(`-- Finisahed --`);
 

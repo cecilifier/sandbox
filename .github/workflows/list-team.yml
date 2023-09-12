@@ -21,7 +21,7 @@ jobs:
                   // --------------------------------------------------------------------------------------------------------------------------------
                   //                                                       Constants
                   // --------------------------------------------------------------------------------------------------------------------------------                    
-                  const TeamName = "scripting";
+                  const TeamName = "api-review-team";
                   const ApiApprovedLabel = "api-approved";
 
                   core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);

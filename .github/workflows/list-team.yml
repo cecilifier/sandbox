@@ -16,7 +16,7 @@ jobs:
         - name: Assign random api rewiewer to request
           uses: actions/github-script@v6
           with:
-                #github-token: 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
+                github-token: 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
                 script: |
                   // --------------------------------------------------------------------------------------------------------------------------------
                   //                                                       Constants

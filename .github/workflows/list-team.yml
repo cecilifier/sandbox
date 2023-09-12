@@ -1,24 +1,30 @@
-name: Ensure public API changes are approved
+name: Assign api reviewer to api review request issue.
+
+# This workflow is used to assign a member of api-review-team to issues
+# labeled with 'api-approved' label.
 
 permissions:
-  pull-requests: read
-  issues: read
+  pull-requests: write
+  issues: write
 
 on:
   issues:
     types: [labeled]
 
 jobs:
-  check-labels:
+  assign-api-reviewer:
     runs-on: [ubuntu-latest]
-    #https://devopsjournal.io/blog/2022/01/03/GitHub-Tokens
     steps:
         - name: App Token
           uses: actions/create-github-app-token@v1
           id: app-token
           with:
-            app_id: ${{ vars.APP_ID }}
-            private_key: ${{ secrets.APP_KEY }}
+            # API_REVIEWER_ASSIGNER_APP_KEY secret and API_REVIEWER_ASSIGNER_APP_ID variable
+            # should be defined at organization level with the private key of the associated
+            # github app and its id, respectively. For more details see
+            # https://devopsjournal.io/blog/2022/01/03/GitHub-Tokens
+            app_id: ${{ vars.API_REVIEWER_ASSIGNER_APP_ID }}
+            private_key: ${{ secrets.API_REVIEWER_ASSIGNER_APP_KEY }}
         - name: Assign random api rewiewer to request
           uses: actions/github-script@v6
           with:
@@ -30,25 +36,23 @@ jobs:
                   const TeamName = "api-review-team";
                   const ApiApprovedLabel = "api-approved";
 
-                  core.notice(`Issue : ${JSON.stringify(context.payload)}`);
-                  
-                  // --------------------------------------------------------------------------------------------------------------------------------
-                  //                                                      Entry point
-                  // --------------------------------------------------------------------------------------------------------------------------------                    
-                  if (context.payload.issue.labels.findIndex(label => label.name === ApiApprovedLabel) === -1) {
-                    core.notice(`Issue ${context.payload.issue.number} does not contain required label ${ApiApprovedLabel}. Ignoring`);
-                    return;
-                  }
-
                   const owner = context.repo.owner;
                   const repo = context.repo.repo;
                   const number = context.payload.issue.number;
                   const assignees = context.payload.issue.assignees;
 
+                  // --------------------------------------------------------------------------------------------------------------------------------
+                  //                                                      Entry point
+                  // --------------------------------------------------------------------------------------------------------------------------------                    
+                  if (context.payload.issue.labels.findIndex(label => label.name === ApiApprovedLabel) === -1) {
+                    core.notice(`Issue ${number} does not contain label ${ApiApprovedLabel}; ignoring...`);
+                    return;
+                  }
+
                   const parameters = {
-                    organization: "cecilifier",
+                    organization: context.organization.login,
                     teamToCheck: TeamName
-                    };
+                  };
                       
                   const query = `
                           query($organization: String!, $teamToCheck: String!) {
@@ -58,7 +62,7 @@ jobs:
                   const teamMembers = await github.graphql(query, parameters);
                   for(const assignee of assignees) {
                     if (teamMembers.organization.team.members.nodes.indexOf(member => member.login === assignee.login)) {
-                      core.notice(`Issue ${number} already assigned to api-review-team member ${assignee.login}`);
+                      core.notice(`Issue ${number} already assigned to api-review-team member ${assignee.login}.`);
                       return;
                     }
                   }

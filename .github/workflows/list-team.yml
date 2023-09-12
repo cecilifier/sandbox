@@ -30,7 +30,7 @@ jobs:
                   const TeamName = "api-review-team";
                   const ApiApprovedLabel = "api-approved";
 
-                  core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);
+                  core.notice(`Issue : ${JSON.stringify(context)}`);
                   
                   // --------------------------------------------------------------------------------------------------------------------------------
                   //                                                      Entry point

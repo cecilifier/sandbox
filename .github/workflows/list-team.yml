@@ -16,7 +16,7 @@ jobs:
         - name: Assign random api rewiewer to request
           uses: actions/github-script@v6
           with:
-                github-token: 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
+                #github-token: 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
                 script: |
                   // --------------------------------------------------------------------------------------------------------------------------------
                   //                                                       Constants
@@ -24,15 +24,15 @@ jobs:
                   const TeamName = "scripting";
                   const ApiApprovedLabel = "api-approved";
 
+                  core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);
+                  
                   // --------------------------------------------------------------------------------------------------------------------------------
                   //                                                      Entry point
                   // --------------------------------------------------------------------------------------------------------------------------------                    
                   if (context.payload.issue.labels.findIndex(label => label.name === ApiApprovedLabel) === -1) {
                     core.notice(`Issue ${context.payload.issue.number} does not contain required label ${ApiApprovedLabel}. Ignoring`);
                   }
-
-                  //core.notice(`Issue : ${JSON.stringify(context.payload.issue)}`);
-
+                  
                   const parameters = {
                     organization: "Unity-Technologies",
                     teamToCheck: TeamName

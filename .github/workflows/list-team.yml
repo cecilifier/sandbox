@@ -20,8 +20,7 @@ jobs:
           id: app-token
           with:
             # API_REVIEWER_ASSIGNER_APP_KEY secret and API_REVIEWER_ASSIGNER_APP_ID variable
-            # should be defined at organization level with the private key of the associated
-            # github app and its id, respectively. For more details see
+            # should be defined at organization level with the private key of the associated github app and its id, respectively. For more details see
             # https://devopsjournal.io/blog/2022/01/03/GitHub-Tokens
             app_id: ${{ vars.API_REVIEWER_ASSIGNER_APP_ID }}
             private_key: ${{ secrets.API_REVIEWER_ASSIGNER_APP_KEY }}
@@ -50,7 +49,7 @@ jobs:
                   }
 
                   const parameters = {
-                    organization: context.organization.login,
+                    organization: context.payload.organization.login,
                     teamToCheck: TeamName
                   };
                       

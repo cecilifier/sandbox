@@ -59,6 +59,12 @@ jobs:
                           }`;
   
                   const teamMembers = await github.graphql(query, parameters);
+                  if (teamMembers.organization.team === null) {
+                    core.warning(`Could not retrieve team members for ${TeamName}`);
+                    return;
+                  }
+                  core.notice(JSON.stringify(teamMembers));
+
                   for(const assignee of assignees) {
                     if (teamMembers.organization.team.members.nodes.indexOf(member => member.login === assignee.login)) {
                       core.notice(`Issue ${number} already assigned to api-review-team member ${assignee.login}.`);

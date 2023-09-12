@@ -22,10 +22,8 @@ jobs:
 
         - name: Assign random api rewiewer to request
           uses: actions/github-script@v6
-          env:
-            GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
           with:
-                #github-token: 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
+                github-token: ${{ steps.get_workflow_token.outputs.token }}
                 script: |
                   // --------------------------------------------------------------------------------------------------------------------------------
                   //                                                       Constants
@@ -64,6 +62,5 @@ jobs:
                   const randonAssignee = teamMembers.organization.team.members.nodes[Math.floor(Math.random() * teamMembers.organization.team.members.nodes.length)];
 
                   core.notice(`Assigning issue ${context.payload.issue.number} to api-review-team member ${randonAssignee.login}...`);
-                  context.github
 
-                  core.notice(`-- Finisahed --`);
+                  core.notice(`-- Finished --`);

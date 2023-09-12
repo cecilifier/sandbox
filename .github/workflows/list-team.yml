@@ -37,6 +37,7 @@ jobs:
                   // --------------------------------------------------------------------------------------------------------------------------------                    
                   if (context.payload.issue.labels.findIndex(label => label.name === ApiApprovedLabel) === -1) {
                     core.notice(`Issue ${context.payload.issue.number} does not contain required label ${ApiApprovedLabel}. Ignoring`);
+                    return;
                   }
                   
                   const parameters = {
@@ -51,15 +52,24 @@ jobs:
   
                   const teamMembers = await github.graphql(query, parameters);
 
-                  for(const assignee of context.payload.issue.assignees) {
+                  const { owner, repo, number, assignees } = context.payload.issue;
+
+                  for(const assignee of assignees) {
                     if (teamMembers.organization.team.members.nodes.indexOf(member => member.login === assignee.login)) {
-                      core.notice(`Issue ${context.payload.issue.number} already assigned to api-review-team member ${assignee.login}`);
+                      core.notice(`Issue ${number} already assigned to api-review-team member ${assignee.login}`);
                       return;
                     }
                   }
 
-                  const randonAssignee = teamMembers.organization.team.members.nodes[Math.floor(Math.random() * teamMembers.organization.team.members.nodes.length)];
+                  const randomAssignee = teamMembers.organization.team.members.nodes[Math.floor(Math.random() * teamMembers.organization.team.members.nodes.length)];
 
-                  core.notice(`Assigning issue ${context.payload.issue.number} to api-review-team member ${randonAssignee.login}...`);
+                  core.notice(`Assigning issue ${number} to api-review-team member ${randomAssignee.login}...`);
+
+                  await github.rest.issues.addAssignees({
+                    owner,
+                    repo,
+                    issue_number: number,
+                    assignees: [randomAssignee.login],
+                  });
 
                   core.notice(`-- Finished --`);

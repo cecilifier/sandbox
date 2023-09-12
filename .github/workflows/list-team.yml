@@ -11,19 +11,18 @@ on:
 jobs:
   check-labels:
     runs-on: [ubuntu-latest]
-
+    #https://devopsjournal.io/blog/2022/01/03/GitHub-Tokens
     steps:
-        - name: Get Token
-          id: get_workflow_token
-          uses: peter-murray/workflow-application-token-action@v2
+        - name: App Token
+          uses: actions/create-github-app-token@v1
+          id: app-token
           with:
-            application_id: ${{ vars.APP_ID }}
-            application_private_key: ${{ secrets.APP_KEY }}
-
+            app_id: ${{ vars.APP_ID }}
+            private_key: ${{ secrets.APP_KEY }}
         - name: Assign random api rewiewer to request
           uses: actions/github-script@v6
           with:
-                github-token: ${{ steps.get_workflow_token.outputs.token }}
+                github-token: ${{ steps.app-token.outputs.token }}
                 script: |
                   // --------------------------------------------------------------------------------------------------------------------------------
                   //                                                       Constants

@@ -1,18 +1,17 @@
 name: Ensure public API changes are approved
 
 permissions:
-  pull-requests: read
-  issues: read
+  pull-requests: write
+  issues: write
 
 on:
   pull_request:
     types: [opened, edited, reopened, labeled, unlabeled, synchronize]
     branches:
       - "*"
-
 jobs:
   validate-public-api-changes-approval:
-    runs-on: [unity-linux-runner]
+    runs-on: [ubuntu-latest]
 
     steps:
       - name: App Token
@@ -29,14 +28,16 @@ jobs:
         uses: actions/github-script@v6
         with:
           github-token: ${{ steps.app-token.outputs.token }}
+          exempt_check_team_name: ${{ vars.API_REVIEWER_ASSIGNER_EXEMPT_TEAM_NAME }} # name of the team that can skip this validation by adding the label `exempt-public-api-approval` to the offending PR
           script: |
             const ApprovalLabel = "api-approved";
+            const ExemptPublicApiApprovalLabel = "exempt-public-api-approval";
             const ApiReviewApproverNotFound = null;
-            const Instructions = "PRs changing public APIs requires an associated [API review request issue](https://github.cds.internal.unity3d.com/unity/neutron/issues) labeled as `api-approved` by one member of `api-review-team`. More information on [API review process](https://internaldocs.unity.com/version/neutron/main/development_process/authoring-changes/api-review/overview/)";
+            const Instructions = "PR changes public APIs and requires an associated [API review request issue](https://github.cds.internal.unity3d.com/unity/neutron/issues) labeled as `api-approved` by one member of `api-review-team`. More information on [API review process](https://internaldocs.unity.com/version/neutron/main/development_process/authoring-changes/api-review/overview/)";
 
             //
             // Returns the login name of user that applied 'api-approved' label or 'null' if label is present.
-            //
+            // --------------------------------------------------------------------------------------------------------------------------------
             async function getLabeler(number) {
               const parameters = {
                 owner: context.repo.owner,
@@ -51,7 +52,7 @@ jobs:
                               title, titleHTML,
                               timelineItems(last:100, BEFORE itemTypes:[LABELED_EVENT, UNLABELED_EVENT]) {
                                 pageCount,
-                                pageInfo { endCursor, hasPreviousPage }, 
+                                pageInfo { startCursor, hasPreviousPage }, 
                                 nodes {
                                   __typename,
                                   ... on LabeledEvent {
@@ -81,12 +82,13 @@ jobs:
                   for(index = issue.timelineItems.pageCount - 1; index >= 0; index-- ) {
                     const labelEvent = issue.timelineItems.nodes[index];
                     core.notice(`Checking event for label #${labelEvent.label.name}`);
+                    
                     if (labelEvent.label.name == ApprovalLabel) {
                       core.notice(`[Label: ${labelEvent.label.name}, Issue: ${number}] ${labelEvent.__typename}, actor: ${labelEvent.actor.login}`);
                       return labelEvent.__typename === "LabeledEvent" ? labelEvent.actor.login : ApiReviewApproverNotFound;
                     }                            
                   }
-                  previousPageCursor = `before: ${issueLabelEvents.repository.issue.timelineItems.pageInfo.endCursor},`;
+                  previousPageCursor = `before: ${issueLabelEvents.repository.issue.timelineItems.pageInfo.startCursor},`;
                   keepSearching = issueLabelEvents.repository.issue.timelineItems.pageInfo.hasPreviousPage;
                 }
               }
@@ -99,6 +101,7 @@ jobs:
               return ApiReviewApproverNotFound;
             }
 
+            // --------------------------------------------------------------------------------------------------------------------------------
             async function getApiRequestIssueApprover() {
                 const parameters = {
                   owner: context.repo.owner,
@@ -114,7 +117,7 @@ jobs:
                               timelineItems(last:$timeline_items_page_size, BEFORE itemTypes:[DISCONNECTED_EVENT, CONNECTED_EVENT]) {
                                 pageCount,
                                 totalCount,
-                                pageInfo { hasPreviousPage, endCursor },
+                                pageInfo { hasPreviousPage, startCursor },
                                 nodes {
                                     __typename 
                                   ... on DisconnectedEvent { createdAt, subject { ... on Issue { number, title, labels(first:50) { nodes { name } } } } }
@@ -150,17 +153,19 @@ jobs:
                       }
                     }
                     
-                    previousPageCursor = `before: ${pullReqTimelineItems.repository.pullRequest.timelineItems.pageInfo.endCursor},`;
+                    previousPageCursor = `before: ${pullReqTimelineItems.repository.pullRequest.timelineItems.pageInfo.startCursor},`;
                     keepSearching = pullReqTimelineItems.repository.pullRequest.timelineItems.pageInfo.hasPreviousPage;
                   }
                 } catch(exception) {
                   core.error(`Exception caught retrieving public api approver name (from issue):\n${exception}`);
                 }
+
                 return ApiReviewApproverNotFound;
             }
 
             //TODO: Consider using filters on the workflow instead of this query. This way this workflow will only trigger if there are .api files changed.
             //      https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-including-paths
+            // --------------------------------------------------------------------------------------------------------------------------------
             async function prContainsPublicAPIChanges() {
                 // Check whether there are any .api files changed.
                 const parameters = {
@@ -182,17 +187,17 @@ jobs:
                             }
                           }
                         }
-                      }
-                      `;
+                      }`;
 
                 const pullReqFiles = await github.graphql(query, parameters);
                 return pullReqFiles.repository.pullRequest.files.nodes.findIndex(file => file.path.endsWith(".api")) != -1;
             }
 
-            async function isUserPartOfApiReviewTeam(login) {
+            // --------------------------------------------------------------------------------------------------------------------------------
+            async function isUserPartOfTeam(login, teamName) {
               const parameters = {
                 organization: context.payload.organization.login,
-                teamToCheck: "api-review-team"
+                teamToCheck: teamName
               };
               
               const query = `
@@ -201,14 +206,115 @@ jobs:
                     }`;
 
               const teamMembers = await github.graphql(query, parameters);
-              core.notice(`Checking if ${login} is memebr of api-review-team\n\n${JSON.stringify(teamMembers)}`);
-              return teamMembers.organization.team.members.nodes.findIndex(member => member.login === login) != -1;
+              core.notice(`Checking if ${login} is member of ${teamName} team.`);
+              
+              return teamMembers.organization.team !== null && teamMembers.organization.team.members.nodes.findIndex(member => member.login === login) != -1;
+            }
+
+            
+            // --------------------------------------------------------------------------------------------------------------------------------
+            async function addCommentWithApiReviewProcessInstructionIfNotDoneYet(message) {
+              const parameters = {
+                  owner: context.repo.owner,
+                  repository: context.repo.repo,
+                  pull_request_number: context.payload.pull_request.number
+              };
+
+              const alreadyReportedQuery = `query($repository: String!, $owner: String!, $pull_request_number: Int!) {
+                                              repository(name: $repository, owner: $owner) {
+                                                pullRequest(number: $pull_request_number) {      
+                                                  comments(first: 50) {
+                                                    totalCount,
+                                                    pageInfo { hasNextPage, endCursor AFTER }
+                                                    nodes {
+                                                      url,
+                                                      author { login, __typename },
+                                                      body
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }`;
+              let afterAnchor = "";
+              while(true) {
+                const comments = await github.graphql(alreadyReportedQuery.replace("AFTER", afterAnchor), parameters)
+                if (comments.repository.pullRequest.comments.totalCount === 0) {
+                  return;
+                }
+
+                const foundMatch = comments.repository.pullRequest.comments.nodes.find(comment => comment.body === message);
+                if (foundMatch !== undefined) {
+                  core.notice(`Comment guiding devs on how to get public api changes approved found (author: ${foundMatch.author.login}, url=${foundMatch.url})`);
+                  return; // found a matching comment.. lets not add one more...
+                }
+
+                if (!comments.repository.pullRequest.comments.pageInfo.hasNextPage)
+                  break; // no more results to check...
+
+                afterAnchor = `, after: ${comments.repository.pullRequest.comments.pageInfo.endCursor}`;
+              }
+
+              await github.rest.issues.createComment( { 
+                                      owner: context.repo.owner,
+                                      repo: context.repo.repo,
+                                      issue_number: context.payload.pull_request.number,
+                                      body: message
+                                    });
+            }
+
+
+            // --------------------------------------------------------------------------------------------------------------------------------
+            async function failWithCommentIfNotExempt(failureMessage, comment) {
+              if (context.payload.pull_request.labels.findIndex(node => node.name === ExemptPublicApiApprovalLabel) !== -1) {
+                const exemptApiApprovalQuery = `query($owner: String!, $repo: String!, $prNumber : Int!) { repository(owner:$owner, name:$repo) { pullRequest(number:$prNumber) { 
+                                                    timelineItems(last:100, itemTypes:[LABELED_EVENT]) {
+                                                      nodes {
+                                                        ... on LabeledEvent   { id, label { name }, actor { login } }
+                                                      }
+                                                    }
+                                                } } }`;
+
+                const results = await github.graphql(exemptApiApprovalQuery, {
+                                                        owner: context.repo.owner,
+                                                        repo: context.repo.repo,
+                                                        prNumber: context.payload.pull_request.number
+                                                    });
+                
+                let index = results.repository.pullRequest.timelineItems.nodes.length - 1;
+                while (index >= 0) {
+                  let current = results.repository.pullRequest.timelineItems.nodes[index];
+                  if (current.label.name === ExemptPublicApiApprovalLabel)
+                     break;
+
+                  index--;
+                }
+
+                if (index !== -1) {
+                  core.notice("api approval exemption label found... checking author.");
+                  const labeler = results.repository.pullRequest.timelineItems.nodes[index].actor.login;
+                                    
+                  const exemptApproversTeam = process.env.INPUT_EXEMPT_CHECK_TEAM_NAME || "(API_REVIEWER_ASSIGNER_EXEMPT_TEAM_NAME github variable not defined)";
+                  if (await isUserPartOfTeam(labeler, exemptApproversTeam)) {
+                    addCommentWithApiReviewProcessInstructionIfNotDoneYet(`Unapproved public api changes exempted by @${labeler}.`);
+                    return;
+                  }
+                  else {
+                    core.warning(`Found unapproved public api changes exemption label (${ExemptPublicApiApprovalLabel}) in PR ${context.payload.pull_request.number} but labeler user (${labeler}) is not part of ${exemptApproversTeam} team or that team does not exist. Ignoring exemption.`);
+                  }
+                }
+              }
+
+              // it is not exempt... lets fail.
+              core.setFailed(failureMessage);
+              addCommentWithApiReviewProcessInstructionIfNotDoneYet(comment);
             }
 
             //------------------------------------------------------------------------------------------------------------------------------------
             //                                                  Entry point
             //------------------------------------------------------------------------------------------------------------------------------------
             core.notice(`Validating public apis changes in PR: ${context.payload.pull_request.number} (${context.payload.pull_request.title})`);
+            core.warning(`..... ${process.env.INPUT_APP_ID}`)
+            core.warning(`..... ${process.env.INPUT_MY_MSG}`)
 
             if (!prContainsPublicAPIChanges())
             {
@@ -219,13 +325,15 @@ jobs:
 
             let approverName = await getApiRequestIssueApprover();
             if (approverName == ApiReviewApproverNotFound) {
-              core.setFailed(`Missing associated api review request issue\n\n${Instructions}`);
-              // TODO: comment with the instructions on the PR.
-              return;
+              failWithCommentIfNotExempt(
+                `Missing associated api review request issue\n\n${Instructions}`,
+                `${Instructions}\n\nNo linked approved Api Review Request issue found. See [api review process documentation](https://internaldocs.unity.com/version/neutron/main/development_process/authoring-changes/api-review/overview/#linking-approval-with-pr)`);
             }
-            else if (! await isUserPartOfApiReviewTeam(approverName)) {
-              // TODO: comment with the instructions on the PR.
-              core.setFailed(`Api Review approver (${approverName}) must be part of api-review-team (https://github.cds.internal.unity3d.com/orgs/unity/teams/api-review-team)\n\n${Instructions}`);
+            else if (! await isUserPartOfTeam(approverName, "api-review-team")) {
+              failWithCommentIfNotExempt(
+                `Api Review approver (${approverName}) must be part of api-review-team (https://github.cds.internal.unity3d.com/orgs/unity/teams/api-review-team)\n\n${Instructions}`,
+                `Api review approver (${approverName}) must be part of [api-review-team](https://github.cds.internal.unity3d.com/orgs/unity/teams/api-review-team)\n\n${Instructions}`);
             }
-
-            core.notice(`Approver name: ${approverName}`);
+            else {
+              core.notice(`Approver name: ${approverName}`);
+            }

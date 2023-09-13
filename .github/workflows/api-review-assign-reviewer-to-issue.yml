@@ -1,7 +1,7 @@
 name: Assign api reviewer to api review request issue.
 
 # This workflow is used to assign a member of api-review-team to issues
-# labeled with 'api-approved' label.
+# labeled with 'api-ready-for-review' label.
 
 permissions:
   pull-requests: write
@@ -33,7 +33,7 @@ jobs:
                   //                                                       Constants
                   // --------------------------------------------------------------------------------------------------------------------------------                    
                   const TeamName = "api-review-team";
-                  const ApiApprovedLabel = "api-approved";
+                  const ApiReadyForReviewLabel = "api-ready-for-review";
 
                   const owner = context.repo.owner;
                   const repo = context.repo.repo;
@@ -43,8 +43,8 @@ jobs:
                   // --------------------------------------------------------------------------------------------------------------------------------
                   //                                                      Entry point
                   // --------------------------------------------------------------------------------------------------------------------------------                    
-                  if (context.payload.issue.labels.findIndex(label => label.name === ApiApprovedLabel) === -1) {
-                    core.notice(`Issue ${number} does not contain label ${ApiApprovedLabel}; ignoring...`);
+                  if (context.payload.issue.labels.findIndex(label => label.name === ApiReadyForReviewLabel) === -1) {
+                    core.notice(`Issue ${number} does not contain label ${ApiReadyForReviewLabel} ignoring...`);
                     return;
                   }
 

@@ -100,13 +100,6 @@ jobs:
             }
 
             async function getApiRequestIssueApprover() {
-                await github.rest.issues.createComment( { 
-                                      owner: context.repo.owner,
-                                      repo: context.repo.repo,
-                                      issue_number: context.payload.pull_request.number,
-                                      body: "--- ADRIANO Commented here :yes:"
-                                    });
-
                 const parameters = {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -142,16 +135,12 @@ jobs:
                     core.notice(`PageCount: ${pullReqTimelineItems.repository.pullRequest.timelineItems.pageCount} / TotalCount: ${pullReqTimelineItems.repository.pullRequest.timelineItems.totalCount}`);
                     if (pullReqTimelineItems.repository.pullRequest.timelineItems.pageCount === 0) {
                       
-                      core.notice(JSON.stringify(context.repo.owner));
-                      core.notice(JSON.stringify(context.repo.repo));
-                      core.notice(context.payload.pull_request.number);
-
                       await github.rest.issues.createComment(
                                     { 
                                         owner: context.repo.owner,
                                         repo: context.repo.repo,
                                         issue_number: context.payload.pull_request.number,
-                                        body: "Test"
+                                        body: "Test 1"
                                       });
                       //"No linked approved Api Review Request issue found." });
 
@@ -182,7 +171,7 @@ jobs:
                                       owner: context.repo.owner,
                                       repo: context.repo.repo,
                                       issue_number: context.payload.pull_request.number,
-                                      body: "MISSING LINK !!!! :yes:"
+                                      body: "MISSING LINK !!!! :-1: 2"
                                     });
                 return ApiReviewApproverNotFound;
             }

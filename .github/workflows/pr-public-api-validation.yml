@@ -12,7 +12,7 @@ on:
 
 jobs:
   validate-public-api-changes-approval:
-    runs-on: [unity-linux-runner]
+    runs-on: [ubuntu-latest]
 
     steps:
       - name: App Token

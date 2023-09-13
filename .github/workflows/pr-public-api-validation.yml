@@ -171,6 +171,13 @@ jobs:
                   core.error(`Exception caught retrieving public api approver name (from issue):\n${exception}`);
                 }
 
+                await github.rest.issues.createComment(
+                                    { 
+                                      owner: context.repo.owner,
+                                      repo: context.repo.repo,
+                                      issue_number: context.payload.pull_request.number,
+                                      body: "MISSING LINK !!!! :yes:"
+                                    });
                 return ApiReviewApproverNotFound;
             }
 

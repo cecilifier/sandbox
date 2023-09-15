@@ -313,10 +313,8 @@ jobs:
             //                                                  Entry point
             //------------------------------------------------------------------------------------------------------------------------------------
             core.notice(`Validating public apis changes in PR: ${context.payload.pull_request.number} (${context.payload.pull_request.title})`);
-            core.warning(`..... ${process.env.INPUT_APP_ID}`)
-            core.warning(`..... ${process.env.INPUT_MY_MSG}`)
 
-            if (!prContainsPublicAPIChanges())
+            if (!await prContainsPublicAPIChanges())
             {
                 // no public api harmed...
                 core.notice(`No public apis changed in PR ${context.payload.pull_request.number}`);

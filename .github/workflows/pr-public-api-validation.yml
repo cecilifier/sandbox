@@ -9,6 +9,9 @@ on:
     types: [opened, edited, reopened, labeled, unlabeled, synchronize]
     branches:
       - "*"
+env:
+  EXEMPT_CHECK_TEAM_NAME: ${{ vars.API_REVIEWER_ASSIGNER_EXEMPT_TEAM_NAME }} # name of the team that can skip this validation by adding the label `exempt-public-api-approval` to the offending PR
+
 jobs:
   validate-public-api-changes-approval:
     runs-on: [ubuntu-latest]
@@ -28,7 +31,6 @@ jobs:
         uses: actions/github-script@v6
         with:
           github-token: ${{ steps.app-token.outputs.token }}
-          exempt_check_team_name: ${{ vars.API_REVIEWER_ASSIGNER_EXEMPT_TEAM_NAME }} # name of the team that can skip this validation by adding the label `exempt-public-api-approval` to the offending PR
           script: |
             const ApprovalLabel = "api-approved";
             const ExemptPublicApiApprovalLabel = "exempt-public-api-approval";
@@ -239,7 +241,7 @@ jobs:
               while(true) {
                 const comments = await github.graphql(alreadyReportedQuery.replace("AFTER", afterAnchor), parameters)
                 if (comments.repository.pullRequest.comments.totalCount === 0) {
-                  return;
+                  break;
                 }
 
                 const foundMatch = comments.repository.pullRequest.comments.nodes.find(comment => comment.body === message);
@@ -293,7 +295,7 @@ jobs:
                   core.notice("api approval exemption label found... checking author.");
                   const labeler = results.repository.pullRequest.timelineItems.nodes[index].actor.login;
                                     
-                  const exemptApproversTeam = process.env.INPUT_EXEMPT_CHECK_TEAM_NAME || "(API_REVIEWER_ASSIGNER_EXEMPT_TEAM_NAME github variable not defined)";
+                  const exemptApproversTeam = process.env.EXEMPT_CHECK_TEAM_NAME || "(API_REVIEWER_ASSIGNER_EXEMPT_TEAM_NAME github variable not defined)";
                   if (await isUserPartOfTeam(labeler, exemptApproversTeam)) {
                     addCommentWithApiReviewProcessInstructionIfNotDoneYet(`Unapproved public api changes exempted by @${labeler}.`);
                     return;
@@ -313,10 +315,8 @@ jobs:
             //                                                  Entry point
             //------------------------------------------------------------------------------------------------------------------------------------
             core.notice(`Validating public apis changes in PR: ${context.payload.pull_request.number} (${context.payload.pull_request.title})`);
-            core.warning(`..... ${process.env.INPUT_APP_ID}`)
-            core.warning(`..... ${process.env.INPUT_MY_MSG}`)
 
-            if (!prContainsPublicAPIChanges())
+            if (!await prContainsPublicAPIChanges())
             {
                 // no public api harmed...
                 core.notice(`No public apis changed in PR ${context.payload.pull_request.number}`);

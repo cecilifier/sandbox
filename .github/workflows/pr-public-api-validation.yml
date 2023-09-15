@@ -241,7 +241,7 @@ jobs:
               while(true) {
                 const comments = await github.graphql(alreadyReportedQuery.replace("AFTER", afterAnchor), parameters)
                 if (comments.repository.pullRequest.comments.totalCount === 0) {
-                  return;
+                  break;
                 }
 
                 const foundMatch = comments.repository.pullRequest.comments.nodes.find(comment => comment.body === message);

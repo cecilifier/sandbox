@@ -10,7 +10,7 @@ on:
     branches:
       - "*"
 env:
-  EXEMPT_CHECK_TEAM_NAME: ${{ vars.API_REVIEWER_ASSIGNER_EXEMPT_TEAM_NAME }} # name of the team that can skip this validation by adding the label `exempt-public-api-approval` to the offending PR
+  EXEMPT_CHECK_TEAM_NAME: ${{ vars.GH_PR_API_VALIDATION_APP_EXEMPT_TEAM_NAME }} # name of the team that can skip this validation by adding the label `exempt-public-api-approval` to the offending PR
 
 jobs:
   validate-public-api-changes-approval:
@@ -24,8 +24,8 @@ jobs:
           # API_REVIEWER_ASSIGNER_APP_KEY secret and API_REVIEWER_ASSIGNER_APP_ID variable
           # should be defined at organization level with the private key of the associated github app and its id, respectively. For more details see
           # https://devopsjournal.io/blog/2022/01/03/GitHub-Tokens
-          app_id: ${{ vars.API_REVIEWER_ASSIGNER_APP_ID }}
-          private_key: ${{ secrets.API_REVIEWER_ASSIGNER_APP_KEY }}
+          app_id: ${{ vars.GH_PR_API_VALIDATION_APP_ID }}
+          private_key: ${{ secrets.GH_PR_API_VALIDATION_APP_KEY }}
 
       - name: Check 'api-approved' label
         uses: actions/github-script@v6

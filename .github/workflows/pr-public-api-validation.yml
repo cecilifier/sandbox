@@ -166,7 +166,8 @@ jobs:
             }
 
             //TODO: Consider using filters on the workflow instead of this query. This way this workflow will only trigger if there are .api files changed.
-            //      https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-including-paths
+            //      https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onpushpull_requestpull_request_targetpathspaths-ignore
+            //      If workflow is marked as `required` this filter cannot be used.
             // --------------------------------------------------------------------------------------------------------------------------------
             async function prContainsPublicAPIChanges() {
                 // Check whether there are any .api files changed.
@@ -180,19 +181,22 @@ jobs:
                       query($owner: String!, $repo: String!, $pull_request_number: Int!) { 
                         repository(name: $repo , owner: $owner) { 
                           pullRequest(number: $pull_request_number) {
-                            files(first: 100) {
-                              totalCount,
-                              nodes {
-                                path,
-                                changeType
-                              }
+                            files(first: 1 NEXT_BATCH) {
+                              pageInfo { hasNextPage, endCursor }
+                              nodes { path, changeType }
                             }
                           }
                         }
                       }`;
 
-                const pullReqFiles = await github.graphql(query, parameters);
-                return pullReqFiles.repository.pullRequest.files.nodes.findIndex(file => file.path.endsWith(".api")) != -1;
+                let nextCursor = "";
+                while (nextCursor !== null) {
+                  const pullReqFiles = await github.graphql(query.replace("NEXT_BATCH", nextCursor), parameters);
+                  if (pullReqFiles.repository.pullRequest.files.nodes.findIndex(file => file.path.endsWith(".api")) != -1)
+                     return true;
+
+                  nextCursor = pullReqFiles.repository.pullRequest.files.pageInfo.hasNextPage ? `, after: "${pullReqFiles.repository.pullRequest.files.pageInfo.endCursor}"` :  null;
+                }
             }
 
             // --------------------------------------------------------------------------------------------------------------------------------
@@ -295,13 +299,13 @@ jobs:
                   core.notice("api approval exemption label found... checking author.");
                   const labeler = results.repository.pullRequest.timelineItems.nodes[index].actor.login;
                                     
-                  const exemptApproversTeam = process.env.EXEMPT_CHECK_TEAM_NAME || "(API_REVIEWER_ASSIGNER_EXEMPT_TEAM_NAME github variable not defined)";
+                  const exemptApproversTeam = process.env.EXEMPT_CHECK_TEAM_NAME || "(GH_PR_API_VALIDATION_APP_EXEMPT_TEAM_NAME github variable not defined)";
                   if (await isUserPartOfTeam(labeler, exemptApproversTeam)) {
                     addCommentWithApiReviewProcessInstructionIfNotDoneYet(`Unapproved public api changes exempted by @${labeler}.`);
                     return;
                   }
                   else {
-                    core.warning(`Found unapproved public api changes exemption label (${ExemptPublicApiApprovalLabel}) in PR ${context.payload.pull_request.number} but labeler user (${labeler}) is not part of ${exemptApproversTeam} team or that team does not exist. Ignoring exemption.`);
+                    core.warning(`Found unapproved public api changes exemption label (${ExemptPublicApiApprovalLabel}) in PR ${context.payload.pull_request.number} but labeler (${labeler}) is not part of ${exemptApproversTeam} team or that team does not exist in Unity organization. Ignoring exemption.`);
                   }
                 }
               }
